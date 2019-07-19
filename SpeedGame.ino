@@ -1,4 +1,8 @@
+#include "TimerObject.h"
+
+
 #define PLAY_STACK_LENGTH 3
+#define LED_AMOUNT 4
 
 #define DEBUG 1
 
@@ -34,6 +38,8 @@ int playStackIndex = 0;
 int playerScore = 0;
 
 int randomIndex;
+TimerObject *timerLedLid = new TimerObject(500);
+
 
 void setup()
 {
@@ -47,13 +53,18 @@ void setup()
   pinMode(BUTTON_BLUE, INPUT);
   pinMode(BUTTON_WHITE, INPUT);
   pinMode(BUTTON_RED, INPUT);
+
+  //timerLedLid->setOnTimer(&turnOffAllLeds);
+  //timerLedLid->Start();
+  
+  debug_setupTest();
 }
 
 
 void loop()
 {
   checkForInputs();
-  
+  //timerLedLid->Update();
 }
 
 
@@ -70,7 +81,7 @@ void checkForInputs()	{
     }
   } else if(digitalRead(BUTTON_GREEN) == LOW && buttonGreenState == 1)  {
     buttonGreenState = 0;
-    turnOffAllLeds();  // TODO: not needed after timer is implemented
+    // turnOffAllLeds();  // TODO: not needed after timer is implemented
   }
 
   if (digitalRead(BUTTON_BLUE) == HIGH && buttonBlueState == 0) {
@@ -163,29 +174,30 @@ void removeFirstElementFromPlayStack()  {
 }
 
 void lidLed(int ledIndex)	{
-  Serial.println("lidLed: " + (String)ledIndex);
-  if (ledIndex < 4)  {
+  Serial.println("LED: " + (String)ledIndex) + " - ON";
+  if (ledIndex < LED_AMOUNT)  {
     digitalWrite(leds[ledIndex], HIGH);
   }
 }
 
-void turnOffAllLeds() {
-  digitalWrite(LED_GREEN, LOW);
-  digitalWrite(LED_BLUE, LOW);
-  digitalWrite(LED_WHITE, LOW);
-  digitalWrite(LED_RED, LOW);
-}
-
-
-void debug_printPlayStack()  {
-  if (DEBUG != 1)
-    return;
-  for(int i = 0; i < PLAY_STACK_LENGTH; i ++)  {
-    Serial.println("playStack: i = " + (String)i  + ": " + playStack[i]);
+void lidAllLeds() {
+  for(int i = 0; i < LED_AMOUNT; i++) {
+    lidLed(i);
   }
-  Serial.println("playStackIndex:" + (String)playStackIndex);
 }
 
+void turnOffLed(int ledIndex) {
+  Serial.println("LED: " + (String)ledIndex) + " – OFF";
+  if (ledIndex < LED_AMOUNT) {
+    digitalWrite(leds[ledIndex], LOW);
+  }
+}
+
+void turnOffAllLeds() {
+  for(int i = 0; i < LED_AMOUNT; i++) {
+    turnOffLed(i);
+  }
+}
 
 void updateDisplayScore() {
   displayOnScreen(playerScore);
@@ -212,4 +224,59 @@ void gameOver()	{
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* DEBUG */
+
+void debug_printPlayStack()  {
+  if (DEBUG != 1)
+    return;
+  for(int i = 0; i < PLAY_STACK_LENGTH; i ++)  {
+    Serial.println("playStack: i = " + (String)i  + ": " + playStack[i]);
+  }
+  Serial.println("playStackIndex:" + (String)playStackIndex);
+}
+
+void debug_setupTest()  {
+  if (DEBUG != 1)
+    return;
+  
+  Serial.println("Setting up...");
+  lidLed(0);
+  delay(100);
+  lidLed(1);
+  delay(100);
+  lidLed(2);
+  delay(100);
+  lidLed(3);
+  delay(100);
+
+  delay(500);
+  
+  turnOffAllLeds();
+  delay(200);  
+  
+  lidAllLeds();
+  delay(200);
+  turnOffAllLeds();
+  delay(200);  
+  lidAllLeds();
+  delay(200);
+  turnOffAllLeds();
+  
+  Serial.println("Setup Done");
+}
 
