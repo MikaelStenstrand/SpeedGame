@@ -1,5 +1,7 @@
 #define PLAY_STACK_LENGTH 3
 
+#define DEBUG 1
+
 #define LED_GREEN 2
 #define LED_BLUE  3
 #define LED_WHITE 4
@@ -13,10 +15,10 @@ const int leds[] = {
 };
 
 // BUTTONS
-#define BUTTON_GREEN  10
-#define BUTTON_BLUE	  11
-#define BUTTON_WHITE  12
-#define BUTTON_RED	  13
+#define BUTTON_GREEN  9
+#define BUTTON_BLUE	  10
+#define BUTTON_WHITE  11
+#define BUTTON_RED	  12
 
 int buttonGreenState 	= 0;
 int buttonBlueState		= 0;
@@ -51,14 +53,15 @@ void setup()
 void loop()
 {
   checkForInputs();
-
-
+  
 }
 
 
 
 
 void checkForInputs()	{
+  // TODO: Trigger new thread with the button press logic
+
   if (digitalRead(BUTTON_GREEN) == HIGH && buttonGreenState == 0) {
     if (millis() - timeOfLastDebounce > delayOfDebounce) {
       buttonGreenState = 1;
@@ -67,14 +70,38 @@ void checkForInputs()	{
     }
   } else if(digitalRead(BUTTON_GREEN) == LOW && buttonGreenState == 1)  {
     buttonGreenState = 0;
-
-    // TODO: debugg purposes
-    digitalWrite(LED_GREEN, LOW);
-    digitalWrite(LED_BLUE, LOW);
-    digitalWrite(LED_WHITE, LOW);
-    digitalWrite(LED_RED, LOW);
+    turnOffAllLeds();  // TODO: not needed after timer is implemented
   }
-  // TODO: Trigger new thread with the button press logic
+
+  if (digitalRead(BUTTON_BLUE) == HIGH && buttonBlueState == 0) {
+    if (millis() - timeOfLastDebounce > delayOfDebounce) {
+      buttonBlueState = 1;
+      timeOfLastDebounce = millis();
+      buttonPressed(1);
+    }
+  } else if(digitalRead(BUTTON_BLUE) == LOW && buttonBlueState == 1)  {
+    buttonBlueState = 0;
+  }
+
+  if (digitalRead(BUTTON_WHITE) == HIGH && buttonWhiteState == 0) {
+    if (millis() - timeOfLastDebounce > delayOfDebounce) {
+      buttonWhiteState = 1;
+      timeOfLastDebounce = millis();
+      buttonPressed(2);
+    }
+  } else if(digitalRead(BUTTON_WHITE) == LOW && buttonWhiteState == 1)  {
+    buttonWhiteState = 0;
+  }
+
+  if (digitalRead(BUTTON_RED) == HIGH && buttonRedState == 0) {
+    if (millis() - timeOfLastDebounce > delayOfDebounce) {
+      buttonRedState = 1;
+      timeOfLastDebounce = millis();
+      buttonPressed(3);
+    }
+  } else if(digitalRead(BUTTON_RED) == LOW && buttonRedState == 1)  {
+    buttonRedState = 0;
+  }
 }
 
 // lid random led and add it to the play sequence array
@@ -89,7 +116,7 @@ void playSequence()	{
 }
 
 int getRandomNumber()	{
-  return random(0, 4);
+  return random(1, 4); // TODO: 0, 4 
   // TODO: less same numbers
 }
 
@@ -104,13 +131,35 @@ bool addToPlayStack(int number)	{
   return true;
 }
 
-bool checkPlayStack(int buttonPress)	{
-  // check if the button pressed is the correct in order of playSequenceList
-  // if ok
-	// playSqeuenceIndex --;
-  	// remove first item from array
-  	// rearrange all items in array [i] = [i+1]
-  return true;
+void buttonPressed(int buttonIndex) {
+  if(checkPlayStack(buttonIndex)) {
+    // todo:
+  } else {
+    gameOver();
+  }
+}
+
+bool checkPlayStack(int buttonIndex)	{
+  if (playStack[0] == buttonIndex)  {
+    Serial.println("MATCH!");
+    removeFirstElementFromPlayStack();
+    playerScore ++;
+    playStackIndex --;
+    return true;
+  } else {
+    return false;
+  }  
+}
+
+void removeFirstElementFromPlayStack()  {
+  for(int i = 0; i < PLAY_STACK_LENGTH; i++)  {
+    if (i == PLAY_STACK_LENGTH - 1) {
+      playStack[i] = 0;
+    } else {
+      playStack[i] = playStack[i + 1];
+    }
+  }
+  debug_printPlayStack();
 }
 
 void lidLed(int ledIndex)	{
@@ -120,14 +169,33 @@ void lidLed(int ledIndex)	{
   }
 }
 
-
+void turnOffAllLeds() {
+  digitalWrite(LED_GREEN, LOW);
+  digitalWrite(LED_BLUE, LOW);
+  digitalWrite(LED_WHITE, LOW);
+  digitalWrite(LED_RED, LOW);
+}
 
 
 void debug_printPlayStack()  {
+  if (DEBUG != 1)
+    return;
   for(int i = 0; i < PLAY_STACK_LENGTH; i ++)  {
     Serial.println("playStack: i = " + (String)i  + ": " + playStack[i]);
   }
   Serial.println("playStackIndex:" + (String)playStackIndex);
+}
+
+
+void updateDisplayScore() {
+  displayOnScreen(playerScore);
+}
+
+
+void displayOnScreen(int toBeDisplayed)  {
+  // TODO: implementation for the 7 segment display here
+
+  Serial.println("DISPLAY: " + (String)toBeDisplayed);
 }
 
 
