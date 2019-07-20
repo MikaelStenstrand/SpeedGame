@@ -37,9 +37,13 @@ int playStack[PLAY_STACK_LENGTH];
 int playStackIndex = 0;
 int playerScore = 0;
 
+int ledSequenceInterval = 2000;
+float ledSequenceDecreaseIntervalFactor = 0.95;
+float ledTurnOffSequenceFactor = 0.60;
 int randomIndex;
-TimerObject *timerLedLid = new TimerObject(500);
 
+TimerObject *timerLedSequence = new TimerObject(ledSequenceInterval);
+TimerObject *timerLedTurnOffSequence = new TimerObject((int)(ledSequenceInterval * ledTurnOffSequenceFactor));
 
 void setup()
 {
@@ -53,22 +57,71 @@ void setup()
   pinMode(BUTTON_BLUE, INPUT);
   pinMode(BUTTON_WHITE, INPUT);
   pinMode(BUTTON_RED, INPUT);
-
-  //timerLedLid->setOnTimer(&turnOffAllLeds);
-  //timerLedLid->Start();
   
   debug_setupTest();
+
+  // TIMERS
+  timerLedSequence->setOnTimer(&playLedSequence);
+  timerLedSequence->Start();
+
+  timerLedTurnOffSequence->setOnTimer(&ledTurnOffSequence);
+  timerLedTurnOffSequence->setSingleShot(true);
+  timerLedTurnOffSequence->Start();
 }
 
 
 void loop()
 {
   checkForInputs();
-  //timerLedLid->Update();
+  timerLedSequence->Update();
+  timerLedTurnOffSequence->Update();
 }
 
+// lid random led and add it to the play sequence array
+// called by timer
+void playLedSequence()	{
+  Serial.println("--- PLAY LED SEQUENCE ---");
+  Serial.println("INTERVAL: " + (String)ledSequenceInterval);
+  randomIndex = getRandomNumber();
+  if (addToPlayStack(randomIndex))	{
+    lidLed(randomIndex);
+    ledSequenceInterval = decreaseInterval(ledSequenceInterval);
+    updateLedTimer(ledSequenceInterval);
+    updateLedTurnOffTimer(ledSequenceInterval);
+  } else	{
+  	gameOver();
+  }
+}
 
+void updateLedTimer(int timer)  {
+  timerLedSequence->setInterval(timer);
+  timerLedSequence->Start();
+}
 
+void updateLedTurnOffTimer(int timer)  {
+  timerLedTurnOffSequence->setInterval((int)(timer * ledTurnOffSequenceFactor));
+  timerLedTurnOffSequence->Start();
+}
+
+int decreaseInterval(int currentInterval) {
+  if (currentInterval > 1000)
+    return (int)(currentInterval * ledSequenceDecreaseIntervalFactor);
+  else if (currentInterval > 500)
+    return (int)(currentInterval * (ledSequenceDecreaseIntervalFactor + 0.030));
+  else if (currentInterval > 300)
+    return (int)(currentInterval * (ledSequenceDecreaseIntervalFactor + 0.035));
+  else if (currentInterval > 200)
+    return (int)(currentInterval * (ledSequenceDecreaseIntervalFactor + 0.040));
+  else if (currentInterval > 100)
+    return (int)(currentInterval * (ledSequenceDecreaseIntervalFactor + 0.047));
+  else if (currentInterval > 90)
+    return currentInterval;
+}
+
+// called by timer
+void ledTurnOffSequence() {
+  turnOffAllLeds();
+}
 
 void checkForInputs()	{
   // TODO: Trigger new thread with the button press logic
@@ -77,11 +130,10 @@ void checkForInputs()	{
     if (millis() - timeOfLastDebounce > delayOfDebounce) {
       buttonGreenState = 1;
       timeOfLastDebounce = millis();
-      playSequence();
+      buttonPressed(0);
     }
   } else if(digitalRead(BUTTON_GREEN) == LOW && buttonGreenState == 1)  {
     buttonGreenState = 0;
-    // turnOffAllLeds();  // TODO: not needed after timer is implemented
   }
 
   if (digitalRead(BUTTON_BLUE) == HIGH && buttonBlueState == 0) {
@@ -115,20 +167,10 @@ void checkForInputs()	{
   }
 }
 
-// lid random led and add it to the play sequence array
-void playSequence()	{
-  randomIndex = getRandomNumber();
-  if (addToPlayStack(randomIndex))	{
-    lidLed(randomIndex);
-    
-  } else	{
-  	gameOver();
-  }
-}
+
 
 int getRandomNumber()	{
-  return random(1, 4); // TODO: 0, 4 
-  // TODO: less same numbers
+  return random(0, 4);
 }
 
 bool addToPlayStack(int number)	{
@@ -144,7 +186,8 @@ bool addToPlayStack(int number)	{
 
 void buttonPressed(int buttonIndex) {
   if(checkPlayStack(buttonIndex)) {
-    // todo:
+    Serial.println("MATCH!");
+    turnOffAllLeds();
   } else {
     gameOver();
   }
@@ -152,8 +195,8 @@ void buttonPressed(int buttonIndex) {
 
 bool checkPlayStack(int buttonIndex)	{
   if (playStack[0] == buttonIndex)  {
-    Serial.println("MATCH!");
     removeFirstElementFromPlayStack();
+    debug_printPlayStack();
     playerScore ++;
     playStackIndex --;
     return true;
@@ -170,11 +213,10 @@ void removeFirstElementFromPlayStack()  {
       playStack[i] = playStack[i + 1];
     }
   }
-  debug_printPlayStack();
 }
 
 void lidLed(int ledIndex)	{
-  Serial.println("LED: " + (String)ledIndex) + " - ON";
+  Serial.println("LED: " + (String)ledIndex + " - ON");
   if (ledIndex < LED_AMOUNT)  {
     digitalWrite(leds[ledIndex], HIGH);
   }
@@ -187,7 +229,7 @@ void lidAllLeds() {
 }
 
 void turnOffLed(int ledIndex) {
-  Serial.println("LED: " + (String)ledIndex) + " – OFF";
+  Serial.println("LED: " + (String)ledIndex + " – OFF");
   if (ledIndex < LED_AMOUNT) {
     digitalWrite(leds[ledIndex], LOW);
   }
