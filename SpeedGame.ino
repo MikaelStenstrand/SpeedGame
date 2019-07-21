@@ -59,7 +59,9 @@ void setup()
   pinMode(BUTTON_WHITE, INPUT);
   pinMode(BUTTON_RED, INPUT);
   
-  //startupLedBlinking();
+  startupLedBlinking();
+
+  randomSeed(analogRead(0));
 
   updateDisplayScore();
   resetPlayStack();
@@ -292,6 +294,7 @@ void resetGame()  {
   timerLedSequence->Start();
   timerLedTurnOffSequence->Start();
   isGameOver = false;
+  randomSeed(analogRead(0));
   startupLedBlinking();
 }
 
