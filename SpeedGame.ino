@@ -1,10 +1,10 @@
 #include "TimerObject.h"
 
-
 #define PLAY_STACK_LENGTH 3
 #define LED_AMOUNT 4
+#define DEFAULT_PLAY_SEQUENCE 2000
 
-#define DEBUG 1
+#define DEBUG 2
 
 #define LED_GREEN 2
 #define LED_BLUE  3
@@ -37,10 +37,11 @@ int playStack[PLAY_STACK_LENGTH];
 int playStackIndex = 0;
 int playerScore = 0;
 
-int ledSequenceInterval = 2000;
+int ledSequenceInterval = DEFAULT_PLAY_SEQUENCE;
 float ledSequenceDecreaseIntervalFactor = 0.95;
 float ledTurnOffSequenceFactor = 0.60;
 int randomIndex;
+bool isGameOver = false;
 
 TimerObject *timerLedSequence = new TimerObject(ledSequenceInterval);
 TimerObject *timerLedTurnOffSequence = new TimerObject((int)(ledSequenceInterval * ledTurnOffSequenceFactor));
@@ -58,7 +59,10 @@ void setup()
   pinMode(BUTTON_WHITE, INPUT);
   pinMode(BUTTON_RED, INPUT);
   
-  debug_setupTest();
+  //startupLedBlinking();
+
+  updateDisplayScore();
+  resetPlayStack();
 
   // TIMERS
   timerLedSequence->setOnTimer(&playLedSequence);
@@ -73,16 +77,20 @@ void setup()
 void loop()
 {
   checkForInputs();
-  timerLedSequence->Update();
-  timerLedTurnOffSequence->Update();
+  if (timerLedSequence->isEnabled())
+    timerLedSequence->Update();
+  if (timerLedTurnOffSequence->isEnabled())
+    timerLedTurnOffSequence->Update();
 }
 
 // lid random led and add it to the play sequence array
 // called by timer
 void playLedSequence()	{
-  Serial.println("--- PLAY LED SEQUENCE ---");
-  Serial.println("INTERVAL: " + (String)ledSequenceInterval);
-  randomIndex = getRandomNumber();
+  if (DEBUG == 1) {
+    Serial.println("--- PLAY LED SEQUENCE ---");
+    Serial.println("INTERVAL: " + (String)ledSequenceInterval);
+  }
+  randomIndex = getRandomNumber(0, 4);
   if (addToPlayStack(randomIndex))	{
     lidLed(randomIndex);
     ledSequenceInterval = decreaseInterval(ledSequenceInterval);
@@ -124,8 +132,6 @@ void ledTurnOffSequence() {
 }
 
 void checkForInputs()	{
-  // TODO: Trigger new thread with the button press logic
-
   if (digitalRead(BUTTON_GREEN) == HIGH && buttonGreenState == 0) {
     if (millis() - timeOfLastDebounce > delayOfDebounce) {
       buttonGreenState = 1;
@@ -167,14 +173,11 @@ void checkForInputs()	{
   }
 }
 
-
-
-int getRandomNumber()	{
-  return random(0, 4);
+int getRandomNumber(int startNumber, int endNumber)	{
+  return random(startNumber, endNumber);
 }
 
 bool addToPlayStack(int number)	{
-  // TODO: check if array is full, i.e. playSequenceIndex == array.length() - 1
   if (playStackIndex >= PLAY_STACK_LENGTH) {
     return false;
   }
@@ -185,9 +188,18 @@ bool addToPlayStack(int number)	{
 }
 
 void buttonPressed(int buttonIndex) {
+  if (DEBUG == 1 || DEBUG == 2) {
+    Serial.println("BUTTON PRESS: " + (String)buttonIndex);
+  }
+  if (isGameOver) {
+    resetGame();
+    return;
+  }
   if(checkPlayStack(buttonIndex)) {
-    Serial.println("MATCH!");
-    turnOffAllLeds();
+    playerScore ++;
+    updateDisplayScore();
+    if (playStackIndex == 0) 
+      turnOffLed(buttonIndex);
   } else {
     gameOver();
   }
@@ -197,7 +209,6 @@ bool checkPlayStack(int buttonIndex)	{
   if (playStack[0] == buttonIndex)  {
     removeFirstElementFromPlayStack();
     debug_printPlayStack();
-    playerScore ++;
     playStackIndex --;
     return true;
   } else {
@@ -208,7 +219,7 @@ bool checkPlayStack(int buttonIndex)	{
 void removeFirstElementFromPlayStack()  {
   for(int i = 0; i < PLAY_STACK_LENGTH; i++)  {
     if (i == PLAY_STACK_LENGTH - 1) {
-      playStack[i] = 0;
+      playStack[i] = -1;
     } else {
       playStack[i] = playStack[i + 1];
     }
@@ -216,7 +227,8 @@ void removeFirstElementFromPlayStack()  {
 }
 
 void lidLed(int ledIndex)	{
-  Serial.println("LED: " + (String)ledIndex + " - ON");
+  if (DEBUG == 1)
+    Serial.println("LED: " + (String)ledIndex + " - ON");
   if (ledIndex < LED_AMOUNT)  {
     digitalWrite(leds[ledIndex], HIGH);
   }
@@ -229,7 +241,8 @@ void lidAllLeds() {
 }
 
 void turnOffLed(int ledIndex) {
-  Serial.println("LED: " + (String)ledIndex + " – OFF");
+  if (DEBUG == 1)
+    Serial.println("LED: " + (String)ledIndex + " – OFF");
   if (ledIndex < LED_AMOUNT) {
     digitalWrite(leds[ledIndex], LOW);
   }
@@ -245,44 +258,87 @@ void updateDisplayScore() {
   displayOnScreen(playerScore);
 }
 
-
 void displayOnScreen(int toBeDisplayed)  {
   // TODO: implementation for the 7 segment display here
 
   Serial.println("DISPLAY: " + (String)toBeDisplayed);
 }
 
-
-
 void gameOver()	{
-  Serial.println("---------");
   Serial.println("---------");
   Serial.println("GAME OVER");
   Serial.println("---------");
-  Serial.println("---------");
+
+  timerLedSequence->Stop();
+  timerLedTurnOffSequence->Stop();
+  updateDisplayScore();
+  isGameOver = true;
+
+  blinkLeds(500);
+  blinkLeds(500);
+  blinkLeds(500);
+  blinkLeds(500);
 }
 
+void resetGame()  {
+  Serial.println("++++++++++++++");
+  Serial.println("GAME RESETTED!");
+  Serial.println("++++++++++++++");
 
+  playerScore = 0;
+  ledSequenceInterval = DEFAULT_PLAY_SEQUENCE;
+  resetPlayStack();
+  updateDisplayScore();
+  timerLedSequence->Start();
+  timerLedTurnOffSequence->Start();
+  isGameOver = false;
+  startupLedBlinking();
+}
 
+void resetPlayStack() {
+  for (int i = 0; i < PLAY_STACK_LENGTH; i++) {
+    playStack[i] = -1;
+  }
+  playStackIndex = 0;
+}
 
+void startupLedBlinking()  {
+  scrollLeds(200);
+  blinkLeds(500);
+  blinkLeds(500);
+}
 
+// delay in use
+void blinkLeds(int delayAmount) {
+  lidAllLeds();
+  delay(delayAmount);
+  turnOffAllLeds();
+  delay(delayAmount);
+}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+// delay in use
+void scrollLeds(int delayAmount) {
+  lidLed(0);
+  delay(delayAmount);
+  turnOffAllLeds();
+  lidLed(1);
+  delay(delayAmount);
+  turnOffAllLeds();
+  lidLed(2);
+  delay(delayAmount);
+  turnOffAllLeds();
+  lidLed(3);
+  delay(delayAmount);
+  turnOffAllLeds();
+  lidLed(2);
+  delay(delayAmount);
+  turnOffAllLeds();
+  lidLed(1);
+  delay(delayAmount);
+  turnOffAllLeds();
+}
 
 /* DEBUG */
-
 void debug_printPlayStack()  {
   if (DEBUG != 1)
     return;
@@ -291,34 +347,3 @@ void debug_printPlayStack()  {
   }
   Serial.println("playStackIndex:" + (String)playStackIndex);
 }
-
-void debug_setupTest()  {
-  if (DEBUG != 1)
-    return;
-  
-  Serial.println("Setting up...");
-  lidLed(0);
-  delay(100);
-  lidLed(1);
-  delay(100);
-  lidLed(2);
-  delay(100);
-  lidLed(3);
-  delay(100);
-
-  delay(500);
-  
-  turnOffAllLeds();
-  delay(200);  
-  
-  lidAllLeds();
-  delay(200);
-  turnOffAllLeds();
-  delay(200);  
-  lidAllLeds();
-  delay(200);
-  turnOffAllLeds();
-  
-  Serial.println("Setup Done");
-}
-
