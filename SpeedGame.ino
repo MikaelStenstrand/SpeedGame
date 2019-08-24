@@ -15,6 +15,12 @@
 #define LED_SEQUENCE_DECREASE_INTERVAL_FACTOR 0.95
 #define LED_TURN_OFF_SEQUENCE_FACTOR 0.60
 
+// BUTTONS
+#define BUTTON_GREEN  9
+#define BUTTON_BLUE	  10
+#define BUTTON_WHITE  11
+#define BUTTON_RED	  12
+
 const int leds[] = {
   LED_GREEN,
   LED_BLUE,
@@ -22,11 +28,13 @@ const int leds[] = {
   LED_RED,
 };
 
-// BUTTONS
-#define BUTTON_GREEN  9
-#define BUTTON_BLUE	  10
-#define BUTTON_WHITE  11
-#define BUTTON_RED	  12
+const int buttons[] = {
+  BUTTON_GREEN,
+  BUTTON_BLUE,
+  BUTTON_WHITE,
+  BUTTON_RED,
+};
+
 
 int buttonGreenState 	= 0;
 int buttonBlueState		= 0;
@@ -92,8 +100,9 @@ void playLedSequence()	{
     Serial.println("INTERVAL: " + (String)ledSequenceInterval);
   }
   randomIndex = getRandomLedIndex();
-  bool gameIsNotOver = addToPlayStack(randomIndex);
-  if (gameIsNotOver)	{
+  bool gameNotOver = addToPlayStack(randomIndex);
+
+  if (gameNotOver)	{
     lidLed(randomIndex);
     ledSequenceInterval = decreaseInterval(ledSequenceInterval);
     updateLedTimer(ledSequenceInterval);
@@ -138,45 +147,25 @@ void ledTurnOffSequence() {
 }
 
 void checkForInputs()	{
-  if (digitalRead(BUTTON_GREEN) == HIGH && buttonGreenState == 0) {
-    if (millis() - timeOfLastButtonDebounce > DELAY_OF_BUTTON_DEBOUNCE) {
-      // make a function e.g. toggleButtonStateOn, toggleButtonGreenStateOn,......, toggleButtonStateOn(BUTTON_GREEN)
-      buttonGreenState = 1;
-      timeOfLastButtonDebounce = millis();
-      buttonPressed(0);
-    }
-  } else if(digitalRead(BUTTON_GREEN) == LOW && buttonGreenState == 1)  {
-    buttonGreenState = 0;
-  }
+  checkButtonInput(0, buttonGreenState);
+  checkButtonInput(1, buttonBlueState);
+  checkButtonInput(2, buttonWhiteState);
+  checkButtonInput(3, buttonRedState);
+}
 
-  if (digitalRead(BUTTON_BLUE) == HIGH && buttonBlueState == 0) {
+/**
+ * Checks for button input and changes the buttonState accordingly
+ */
+void checkButtonInput(int buttonIndex, int &buttonState) {
+  const int buttonPin = buttons[buttonIndex];
+  if (digitalRead(buttonPin) == HIGH && buttonState == 0) {
     if (millis() - timeOfLastButtonDebounce > DELAY_OF_BUTTON_DEBOUNCE) {
-      buttonBlueState = 1;
+      buttonState = 1;
       timeOfLastButtonDebounce = millis();
-      buttonPressed(1);
+      buttonPressed(buttonIndex);
     }
-  } else if(digitalRead(BUTTON_BLUE) == LOW && buttonBlueState == 1)  {
-    buttonBlueState = 0;
-  }
-
-  if (digitalRead(BUTTON_WHITE) == HIGH && buttonWhiteState == 0) {
-    if (millis() - timeOfLastButtonDebounce > DELAY_OF_BUTTON_DEBOUNCE) {
-      buttonWhiteState = 1;
-      timeOfLastButtonDebounce = millis();
-      buttonPressed(2);
-    }
-  } else if(digitalRead(BUTTON_WHITE) == LOW && buttonWhiteState == 1)  {
-    buttonWhiteState = 0;
-  }
-
-  if (digitalRead(BUTTON_RED) == HIGH && buttonRedState == 0) {
-    if (millis() - timeOfLastButtonDebounce > DELAY_OF_BUTTON_DEBOUNCE) {
-      buttonRedState = 1;
-      timeOfLastButtonDebounce = millis();
-      buttonPressed(3);
-    }
-  } else if(digitalRead(BUTTON_RED) == LOW && buttonRedState == 1)  {
-    buttonRedState = 0;
+  } else if(digitalRead(buttonPin) == LOW && buttonState == 1)  {
+    buttonState = 0;
   }
 }
 
