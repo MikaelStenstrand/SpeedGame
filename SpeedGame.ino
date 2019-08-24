@@ -11,6 +11,10 @@
 #define LED_WHITE 4
 #define LED_RED   5
 
+#define DELAY_OF_BUTTON_DEBOUNCE 100
+#define LED_SEQUENCE_DECREASE_INTERVAL_FACTOR 0.95
+#define LED_TURN_OFF_SEQUENCE_FACTOR 0.60
+
 const int leds[] = {
   LED_GREEN,
   LED_BLUE,
@@ -29,25 +33,21 @@ int buttonBlueState		= 0;
 int buttonWhiteState	= 0;
 int buttonRedState		= 0;
 
-long timeOfLastDebounce = 0;
-long delayOfDebounce = 100;
+long timeOfLastButtonDebounce = 0;
 
 // PLAY LOGIC
 int playStack[PLAY_STACK_LENGTH];
 int playStackIndex = 0;
 int playerScore = 0;
+int randomIndex;
 
 int ledSequenceInterval = DEFAULT_PLAY_SEQUENCE;
-float ledSequenceDecreaseIntervalFactor = 0.95;
-float ledTurnOffSequenceFactor = 0.60;
-int randomIndex;
 bool isGameOver = false;
 
 TimerObject *timerLedSequence = new TimerObject(ledSequenceInterval);
-TimerObject *timerLedTurnOffSequence = new TimerObject((int)(ledSequenceInterval * ledTurnOffSequenceFactor));
+TimerObject *timerLedTurnOffSequence = new TimerObject((int)(ledSequenceInterval * LED_TURN_OFF_SEQUENCE_FACTOR));
 
-void setup()
-{
+void setup() {
   Serial.begin(9200);
   pinMode(LED_GREEN, OUTPUT);
   pinMode(LED_BLUE, OUTPUT);
@@ -58,7 +58,7 @@ void setup()
   pinMode(BUTTON_BLUE, INPUT);
   pinMode(BUTTON_WHITE, INPUT);
   pinMode(BUTTON_RED, INPUT);
-  
+
   startupLedBlinking();
 
   randomSeed(analogRead(0));
@@ -76,8 +76,7 @@ void setup()
 }
 
 
-void loop()
-{
+void loop() {
   checkForInputs();
   if (timerLedSequence->isEnabled())
     timerLedSequence->Update();
@@ -92,8 +91,9 @@ void playLedSequence()	{
     Serial.println("--- PLAY LED SEQUENCE ---");
     Serial.println("INTERVAL: " + (String)ledSequenceInterval);
   }
-  randomIndex = getRandomNumber(0, 4);
-  if (addToPlayStack(randomIndex))	{
+  randomIndex = getRandomLedIndex();
+  bool gameIsNotOver = addToPlayStack(randomIndex);
+  if (gameIsNotOver)	{
     lidLed(randomIndex);
     ledSequenceInterval = decreaseInterval(ledSequenceInterval);
     updateLedTimer(ledSequenceInterval);
@@ -103,27 +103,31 @@ void playLedSequence()	{
   }
 }
 
+int getRandomLedIndex() {
+  return random(0, LED_AMOUNT);
+}
+
 void updateLedTimer(int timer)  {
   timerLedSequence->setInterval(timer);
   timerLedSequence->Start();
 }
 
 void updateLedTurnOffTimer(int timer)  {
-  timerLedTurnOffSequence->setInterval((int)(timer * ledTurnOffSequenceFactor));
+  timerLedTurnOffSequence->setInterval((int)(timer * LED_TURN_OFF_SEQUENCE_FACTOR));
   timerLedTurnOffSequence->Start();
 }
 
 int decreaseInterval(int currentInterval) {
   if (currentInterval > 1000)
-    return (int)(currentInterval * ledSequenceDecreaseIntervalFactor);
+    return (int)(currentInterval * LED_SEQUENCE_DECREASE_INTERVAL_FACTOR);
   else if (currentInterval > 500)
-    return (int)(currentInterval * (ledSequenceDecreaseIntervalFactor + 0.030));
+    return (int)(currentInterval * (LED_SEQUENCE_DECREASE_INTERVAL_FACTOR + 0.030));
   else if (currentInterval > 300)
-    return (int)(currentInterval * (ledSequenceDecreaseIntervalFactor + 0.035));
+    return (int)(currentInterval * (LED_SEQUENCE_DECREASE_INTERVAL_FACTOR + 0.035));
   else if (currentInterval > 200)
-    return (int)(currentInterval * (ledSequenceDecreaseIntervalFactor + 0.040));
+    return (int)(currentInterval * (LED_SEQUENCE_DECREASE_INTERVAL_FACTOR + 0.040));
   else if (currentInterval > 100)
-    return (int)(currentInterval * (ledSequenceDecreaseIntervalFactor + 0.047));
+    return (int)(currentInterval * (LED_SEQUENCE_DECREASE_INTERVAL_FACTOR + 0.047));
   else if (currentInterval > 90)
     return currentInterval;
 }
@@ -135,9 +139,10 @@ void ledTurnOffSequence() {
 
 void checkForInputs()	{
   if (digitalRead(BUTTON_GREEN) == HIGH && buttonGreenState == 0) {
-    if (millis() - timeOfLastDebounce > delayOfDebounce) {
+    if (millis() - timeOfLastButtonDebounce > DELAY_OF_BUTTON_DEBOUNCE) {
+      // make a function e.g. toggleButtonStateOn, toggleButtonGreenStateOn,......, toggleButtonStateOn(BUTTON_GREEN)
       buttonGreenState = 1;
-      timeOfLastDebounce = millis();
+      timeOfLastButtonDebounce = millis();
       buttonPressed(0);
     }
   } else if(digitalRead(BUTTON_GREEN) == LOW && buttonGreenState == 1)  {
@@ -145,9 +150,9 @@ void checkForInputs()	{
   }
 
   if (digitalRead(BUTTON_BLUE) == HIGH && buttonBlueState == 0) {
-    if (millis() - timeOfLastDebounce > delayOfDebounce) {
+    if (millis() - timeOfLastButtonDebounce > DELAY_OF_BUTTON_DEBOUNCE) {
       buttonBlueState = 1;
-      timeOfLastDebounce = millis();
+      timeOfLastButtonDebounce = millis();
       buttonPressed(1);
     }
   } else if(digitalRead(BUTTON_BLUE) == LOW && buttonBlueState == 1)  {
@@ -155,9 +160,9 @@ void checkForInputs()	{
   }
 
   if (digitalRead(BUTTON_WHITE) == HIGH && buttonWhiteState == 0) {
-    if (millis() - timeOfLastDebounce > delayOfDebounce) {
+    if (millis() - timeOfLastButtonDebounce > DELAY_OF_BUTTON_DEBOUNCE) {
       buttonWhiteState = 1;
-      timeOfLastDebounce = millis();
+      timeOfLastButtonDebounce = millis();
       buttonPressed(2);
     }
   } else if(digitalRead(BUTTON_WHITE) == LOW && buttonWhiteState == 1)  {
@@ -165,9 +170,9 @@ void checkForInputs()	{
   }
 
   if (digitalRead(BUTTON_RED) == HIGH && buttonRedState == 0) {
-    if (millis() - timeOfLastDebounce > delayOfDebounce) {
+    if (millis() - timeOfLastButtonDebounce > DELAY_OF_BUTTON_DEBOUNCE) {
       buttonRedState = 1;
-      timeOfLastDebounce = millis();
+      timeOfLastButtonDebounce = millis();
       buttonPressed(3);
     }
   } else if(digitalRead(BUTTON_RED) == LOW && buttonRedState == 1)  {
@@ -175,16 +180,12 @@ void checkForInputs()	{
   }
 }
 
-int getRandomNumber(int startNumber, int endNumber)	{
-  return random(startNumber, endNumber);
-}
-
 bool addToPlayStack(int number)	{
   if (playStackIndex >= PLAY_STACK_LENGTH) {
     return false;
   }
   playStack[playStackIndex] = number;
-  playStackIndex ++;
+  playStackIndex++;
   debug_printPlayStack();
   return true;
 }
@@ -198,24 +199,28 @@ void buttonPressed(int buttonIndex) {
     return;
   }
   if(checkPlayStack(buttonIndex)) {
-    playerScore ++;
+    playerScore++;
     updateDisplayScore();
-    if (playStackIndex == 0) 
+    if (isRecentLedPressed())
       turnOffLed(buttonIndex);
   } else {
     gameOver();
   }
 }
 
+bool isRecentLedPressed() {
+  return playStackIndex == 0;
+}
+
 bool checkPlayStack(int buttonIndex)	{
   if (playStack[0] == buttonIndex)  {
     removeFirstElementFromPlayStack();
     debug_printPlayStack();
-    playStackIndex --;
+    playStackIndex--;
     return true;
   } else {
     return false;
-  }  
+  }
 }
 
 void removeFirstElementFromPlayStack()  {
@@ -284,9 +289,11 @@ void gameOver()	{
 
 void resetGame()  {
   Serial.println("++++++++++++++");
-  Serial.println("GAME RESETTED!");
+  Serial.println("GAME RESET!");
   Serial.println("++++++++++++++");
-
+  
+  // initGame() - all shared initializations.
+  
   playerScore = 0;
   ledSequenceInterval = DEFAULT_PLAY_SEQUENCE;
   resetPlayStack();
