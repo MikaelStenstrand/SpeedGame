@@ -1,4 +1,8 @@
 #include "TimerObject.h"
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include "Adafruit_LEDBackpack.h"
+
 
 #define PLAY_STACK_LENGTH 3
 #define LED_AMOUNT 4
@@ -43,7 +47,6 @@ int buttonRedState		= 0;
 
 long timeOfLastButtonDebounce = 0;
 
-// PLAY LOGIC
 int playStack[PLAY_STACK_LENGTH];
 int playStackIndex = 0;
 int playerScore = 0;
@@ -54,6 +57,8 @@ bool isGameOver = false;
 
 TimerObject *timerLedSequence = new TimerObject(ledSequenceInterval);
 TimerObject *timerLedTurnOffSequence = new TimerObject((int)(ledSequenceInterval * LED_TURN_OFF_SEQUENCE_FACTOR));
+
+Adafruit_7segment display = Adafruit_7segment();
 
 void setup() {
   Serial.begin(9200);
@@ -67,6 +72,7 @@ void setup() {
   pinMode(BUTTON_WHITE, INPUT);
   pinMode(BUTTON_RED, INPUT);
 
+  startupDisplay();
   startupLedBlinking();
 
   randomSeed(analogRead(0));
@@ -83,7 +89,6 @@ void setup() {
   timerLedTurnOffSequence->Start();
 }
 
-
 void loop() {
   checkForInputs();
   if (timerLedSequence->isEnabled())
@@ -91,9 +96,10 @@ void loop() {
   if (timerLedTurnOffSequence->isEnabled())
     timerLedTurnOffSequence->Update();
 }
-
-// lid random led and add it to the play sequence array
-// called by timer
+/**
+ * lid random led and add it to the play sequence array
+ * called by timer
+ */
 void playLedSequence()	{
   if (DEBUG == 1) {
     Serial.println("--- PLAY LED SEQUENCE ---");
@@ -255,16 +261,14 @@ void updateDisplayScore() {
 }
 
 void displayOnScreen(int toBeDisplayed)  {
-  // TODO: implementation for the 7 segment display here
-
-  Serial.println("DISPLAY: " + (String)toBeDisplayed);
+  if (toBeDisplayed >= 10000) {
+    return;
+  }
+  display.print(toBeDisplayed, DEC);
+  display.writeDisplay();
 }
 
 void gameOver()	{
-  Serial.println("---------");
-  Serial.println("GAME OVER");
-  Serial.println("---------");
-
   timerLedSequence->Stop();
   timerLedTurnOffSequence->Stop();
   updateDisplayScore();
@@ -277,12 +281,7 @@ void gameOver()	{
 }
 
 void resetGame()  {
-  Serial.println("++++++++++++++");
-  Serial.println("GAME RESET!");
-  Serial.println("++++++++++++++");
-  
   // initGame() - all shared initializations.
-  
   playerScore = 0;
   ledSequenceInterval = DEFAULT_PLAY_SEQUENCE;
   resetPlayStack();
@@ -305,6 +304,11 @@ void startupLedBlinking()  {
   scrollLeds(200);
   blinkLeds(500);
   blinkLeds(500);
+}
+
+void startupDisplay() {
+  display.begin(0x70);
+  displayOnScreen(0);
 }
 
 // delay in use
