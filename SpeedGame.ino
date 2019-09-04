@@ -4,7 +4,7 @@
 #include "Adafruit_LEDBackpack.h"
 
 
-#define PLAY_STACK_LENGTH 3
+#define PLAY_STACK_LENGTH 10
 #define LED_AMOUNT 4
 #define DEFAULT_PLAY_SEQUENCE 1000
 
